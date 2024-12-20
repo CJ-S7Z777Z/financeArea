@@ -10,7 +10,7 @@ const ExcelJS = require('exceljs');
 const redis = require('redis');
 
 // Замените на ваш токен
-const TELEGRAM_TOKEN = '7846183336:AAH6T3A_ajUutR-OMBwxiZSrRxja-B4XQKM';
+const TELEGRAM_TOKEN = '7779646046:AAEijfFphHcIEi_SaoIbkDJo4_C0Kj5g4_w';
 
 const bot = new TelegramBot(TELEGRAM_TOKEN, { polling: true });
 const app = express();
