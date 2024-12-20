@@ -336,10 +336,10 @@
       function update() {
         start += increment;
         if (start < end) {
-          element.innerText = Math.floor(start) + ' ₽.';
+          element.innerText = Math.floor(start) + ' руб.';
           requestAnimationFrame(update);
         } else {
-          element.innerText = end + ' ₽.';
+          element.innerText = end + ' руб.';
         }
       }
       update();
@@ -432,7 +432,7 @@
     } else {
       const ctxExpenses = document.getElementById('expensesChart').getContext('2d');
       window.expensesChartInstance = new Chart(ctxExpenses, {
-        type: 'line',
+        type: 'bar',
         data: {
           labels: expensesLabels,
           datasets: [{
@@ -505,105 +505,105 @@
     // Сортировка по дате (последние сверху)
     transactions.sort((a,b) => new Date(b.date) - new Date(a.date));
 
-// Ограничение на количество записей (например, последние 100)
-const limitedTransactions = transactions.slice(0, 100);
+    // Ограничение на количество записей (например, последние 100)
+    const limitedTransactions = transactions.slice(0, 100);
 
-// Добавление строк в таблицу
-const tbody = document.getElementById('transactions');
-tbody.innerHTML = ''; // Очистка таблицы перед добавлением
-limitedTransactions.forEach(tx => {
-  const tr = document.createElement('tr');
+    // Добавление строк в таблицу
+    const tbody = document.getElementById('transactions');
+    tbody.innerHTML = ''; // Очистка таблицы перед добавлением
+    limitedTransactions.forEach(tx => {
+      const tr = document.createElement('tr');
 
-  const tdDate = document.createElement('td');
-  tdDate.textContent = tx.date;
-  tr.appendChild(tdDate);
+      const tdDate = document.createElement('td');
+      tdDate.textContent = tx.date;
+      tr.appendChild(tdDate);
 
-  const tdType = document.createElement('td');
-  tdType.textContent = tx.displayType;
-  tdType.style.color = tx.type === 'income' ? '#00FF00' : '#FF0000';
-  tr.appendChild(tdType);
+      const tdType = document.createElement('td');
+      tdType.textContent = tx.displayType;
+      tdType.style.color = tx.type === 'income' ? '#00FF00' : '#FF0000';
+      tr.appendChild(tdType);
 
-  const tdAmount = document.createElement('td');
-  tdAmount.textContent = tx.amount + ' ₽.';
-  tr.appendChild(tdAmount);
+      const tdAmount = document.createElement('td');
+      tdAmount.textContent = tx.amount + ' руб.';
+      tr.appendChild(tdAmount);
 
-  const tdDescription = document.createElement('td');
-  tdDescription.textContent = tx.description;
-  tr.appendChild(tdDescription);
+      const tdDescription = document.createElement('td');
+      tdDescription.textContent = tx.description;
+      tr.appendChild(tdDescription);
 
-  const tdComments = document.createElement('td');
-  const commentButton = document.createElement('button');
-  commentButton.textContent = 'Комментировать';
-  commentButton.className = 'comment-button';
-  commentButton.onclick = () => openModal(tx.id, tx.type);
-  tdComments.appendChild(commentButton);
+      const tdComments = document.createElement('td');
+      const commentButton = document.createElement('button');
+      commentButton.textContent = 'Комментировать';
+      commentButton.className = 'comment-button';
+      commentButton.onclick = () => openModal(tx.id, tx.type);
+      tdComments.appendChild(commentButton);
 
-  // Отображение существующих комментариев
-  if (tx.comments.length > 0) {
-    const commentsSection = document.createElement('div');
-    commentsSection.className = 'comments-section';
-    tx.comments.forEach(comment => {
-      const commentDiv = document.createElement('div');
-      commentDiv.className = 'comment';
-      commentDiv.innerHTML = `<span class="name">${comment.name}:</span> ${comment.comment}`;
-      commentsSection.appendChild(commentDiv);
+      // Отображение существующих комментариев
+      if (tx.comments.length > 0) {
+        const commentsSection = document.createElement('div');
+        commentsSection.className = 'comments-section';
+        tx.comments.forEach(comment => {
+          const commentDiv = document.createElement('div');
+          commentDiv.className = 'comment';
+          commentDiv.innerHTML = `<span class="name">${comment.name}:</span> ${comment.comment}`;
+          commentsSection.appendChild(commentDiv);
+        });
+        tdComments.appendChild(commentsSection);
+      }
+
+      tr.appendChild(tdComments);
+
+      tbody.appendChild(tr);
     });
-    tdComments.appendChild(commentsSection);
   }
 
-  tr.appendChild(tdComments);
+  // Функция для обработки формы комментариев
+  commentForm.onsubmit = async function(e) {
+    e.preventDefault();
+    const id = document.getElementById('transactionId').value;
+    const type = document.getElementById('transactionType').value; // 'income' или 'expense'
+    const name = document.getElementById('commenterName').value;
+    const comment = quill.root.innerHTML.trim();
 
-  tbody.appendChild(tr);
-});
-}
+    if (!name || quill.getText().trim().length === 0) {
+      alert('Пожалуйста, заполните все поля.');
+      return;
+    }
 
-// Функция для обработки формы комментариев
-commentForm.onsubmit = async function(e) {
-e.preventDefault();
-const id = document.getElementById('transactionId').value;
-const type = document.getElementById('transactionType').value; // 'income' или 'expense'
-const name = document.getElementById('commenterName').value;
-const comment = quill.root.innerHTML.trim();
+    try {
+      const response = await fetch('/api/comments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, type, name, comment })
+      });
 
-if (!name || quill.getText().trim().length === 0) {
-  alert('Пожалуйста, заполните все поля.');
-  return;
-}
+      if (response.ok) {
+        // Закрытие модального окна и очистка формы
+        modal.style.display = "none";
+        commentForm.reset();
+        quill.setText('');
+      } else {
+        const errorData = await response.json();
+        alert('Ошибка при добавлении комментария: ' + (errorData.message || 'Unknown error.'));
+      }
+    } catch (error) {
+      console.error('Ошибка при отправке запроса:', error);
+      alert('Произошла ошибка при отправке комментария.');
+    }
+  }
 
-try {
-  const response = await fetch('/api/comments', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ id, type, name, comment })
+  // Функция для экспорта данных в Excel
+  function exportToExcel() {
+    window.location.href = '/api/export';
+  }
+
+  // Обработка обновлений в реальном времени
+  socket.on('update', (data) => {
+    buildDashboard();
   });
 
-  if (response.ok) {
-    // Закрытие модального окна и очистка формы
-    modal.style.display = "none";
-    commentForm.reset();
-    quill.setText('');
-  } else {
-    const errorData = await response.json();
-    alert('Ошибка при добавлении комментария: ' + (errorData.message || 'Unknown error.'));
-  }
-} catch (error) {
-  console.error('Ошибка при отправке запроса:', error);
-  alert('Произошла ошибка при отправке комментария.');
-}
-}
-
-// Функция для экспорта данных в Excel
-function exportToExcel() {
-window.location.href = '/api/export';
-}
-
-// Обработка обновлений в реальном времени
-socket.on('update', (data) => {
-buildDashboard();
-});
-
-// Запуск построения дашборда при загрузке страницы
-window.onload = buildDashboard;
+  // Запуск построения дашборда при загрузке страницы
+  window.onload = buildDashboard;
 </script>
 
 
