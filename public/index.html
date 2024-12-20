@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Финансовый Трекер</title>
+  <!-- Подключение AOS для анимаций при прокрутке -->
+  <link href="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.css" rel="stylesheet">
+  <!-- Подключение Quill.js для форматирования комментариев -->
+  <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #121212;
+      color: #00FFFF;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      overflow-x: hidden;
+    }
+    .container {
+      padding: 20px;
+      max-width: 1600px;
+      margin: 0 auto;
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 40px;
+      color: #00FFEE;
+      font-size: 3em;
+      text-shadow: 0 0 10px #00FFFF;
+    }
+    .summary {
+      display: flex;
+      justify-content: space-around;
+      flex-wrap: wrap;
+      margin-bottom: 40px;
+    }
+    .box {
+      background-color: #1e1e1e;
+      padding: 20px;
+      border-radius: 10px;
+      width: 45%;
+      min-width: 300px;
+      text-align: center;
+      box-shadow: 0 0 20px #00FFFF;
+      margin: 10px;
+      transition: transform 0.3s;
+    }
+    .box:hover {
+      transform: scale(1.05);
+    }
+    .number {
+      font-size: 2.5em;
+      margin-top: 10px;
+      color: #00EEFF;
+      animation: fadeIn 2s;
+    }
+    canvas {
+      background-color: #1e1e1e;
+      border-radius: 10px;
+      box-shadow: 0 0 20px #00FFFF;
+      margin-bottom: 40px;
+    }
+    /* Таблица */
+    .table-container {
+      overflow-x: auto;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background-color: #1e1e1e;
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 0 20px #00FFFF;
+      margin-bottom: 40px;
+    }
+    th, td {
+      padding: 15px;
+      text-align: left;
+      border-bottom: 1px solid #444;
+      position: relative;
+    }
+    th {
+      background-color: #00FFFF;
+      color: #121212;
+      position: sticky;
+      top: 0;
+      z-index: 2;
+    }
+    tr:hover {
+      background-color: #333;
+    }
+    /* Кнопка Добавления Комментария */
+    .comment-button {
+      background-color: #00FFEE;
+      border: none;
+      color: #121212;
+      padding: 5px 10px;
+      text-align: center;
+      text-decoration: none;
+      display: inline-block;
+      font-size: 0.9em;
+      margin: 2px 1px;
+      cursor: pointer;
+      border-radius: 5px;
+      transition: background-color 0.3s;
+    }
+    .comment-button:hover {
+      background-color: #00CCCC;
+    }
+    /* Модальное окно */
+    .modal {
+      display: none; 
+      position: fixed; 
+      z-index: 1000; 
+      left: 0;
+      top: 0;
+      width: 100%; 
+      height: 100%; 
+      overflow: auto; 
+      background-color: rgba(0,0,0,0.7); 
+      justify-content: center;
+      align-items: center;
+    }
+    .modal-content {
+      background-color: #1e1e1e;
+      margin: auto;
+      padding: 20px;
+      border: 1px solid #888;
+      width: 80%;
+      max-width: 500px;
+      border-radius: 10px;
+      color: #00FFFF;
+    }
+    .close {
+      color: #aaa;
+      float: right;
+      font-size: 28px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .close:hover,
+    .close:focus {
+      color: #fff;
+      text-decoration: none;
+      cursor: pointer;
+    }
+    /* Кнопка Экспорта */
+    .export-button {
+      background-color: #FF6384;
+      border: none;
+      color: #121212;
+      padding: 10px 20px;
+      text-align: center;
+      text-decoration: none;
+      display: inline-block;
+      font-size: 1em;
+      margin: 20px 0;
+      cursor: pointer;
+      border-radius: 5px;
+      transition: background-color 0.3s;
+    }
+    .export-button:hover {
+      background-color: #FF4C6B;
+    }
+    /* Анимация */
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    /* Комментарии */
+    .comments-section {
+      margin-top: 10px;
+      padding-left: 10px;
+    }
+    .comment {
+      background-color: #2a2a2a;
+      padding: 10px;
+      border-radius: 5px;
+      margin-bottom: 5px;
+      color: #ffffff;
+    }
+    .comment .name {
+      font-weight: bold;
+      color: #00FFFF;
+    }
+    /* Медиа запросы для мобильных устройств */
+    @media (max-width: 768px) {
+      .summary {
+        flex-direction: column;
+        align-items: center;
+      }
+      .box {
+        width: 80%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Финансовый Трекер</h1>
+
+    <div class="summary">
+      <div class="box" data-aos="fade-up">
+        <h2>Доход в месяц</h2>
+        <div class="number" id="income">0 руб.</div>
+      </div>
+      <div class="box" data-aos="fade-up">
+        <h2>Расход в месяц</h2>
+        <div class="number" id="expenses">0 руб.</div>
+      </div>
+      <div class="box" data-aos="fade-up">
+        <h2>Баланс</h2>
+        <div class="number" id="balance">0 руб.</div>
+      </div>
+      <div class="box" data-aos="fade-up">
+        <h2>Средний Доход</h2>
+        <div class="number" id="averageIncome">0 руб.</div>
+      </div>
+      <div class="box" data-aos="fade-up">
+        <h2>Средний Расход</h2>
+        <div class="number" id="averageExpense">0 руб.</div>
+      </div>
+    </div>
+
+    <button class="export-button" onclick="exportToExcel()">Экспорт в Excel</button>
+
+    <div data-aos="fade-up">
+      <canvas id="incomeChart" width="400" height="200"></canvas>
+    </div>
+
+    <div data-aos="fade-up" style="margin-top:40px;">
+      <canvas id="expensesChart" width="400" height="200"></canvas>
+    </div>
+
+    <div data-aos="fade-up">
+      <h2>Подробные Записи</h2>
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Дата</th>
+              <th>Тип</th>
+              <th>Сумма (руб.)</th>
+              <th>Описание</th>
+              <th>Комментарии</th>
+            </tr>
+          </thead>
+          <tbody id="transactions">
+            <!-- Данные будут динамически добавляться сюда -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Модальное окно для комментариев -->
+  <div id="commentModal" class="modal">
+    <div class="modal-content">
+      <span class="close">&times;</span>
+      <h3>Добавить комментарий</h3>
+      <form id="commentForm">
+        <input type="hidden" id="transactionId">
+        <input type="hidden" id="transactionType">
+        <div>
+          <label for="commenterName">Имя:</label>
+          <input type="text" id="commenterName" name="commenterName" required style="width: 100%; padding: 8px; margin: 5px 0;">
+        </div>
+        <div>
+          <label for="commentText">Комментарий:</label>
+          <div id="quillEditor"></div>
+        </div>
+        <button type="submit" style="background-color: #00FFEE; border: none; padding: 10px 20px; color: #121212; cursor: pointer; border-radius: 5px; margin-top: 10px;">Опубликовать</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Подключение AOS JS -->
+  <script src="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.js"></script>
+  <!-- Подключение Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Подключение Socket.io -->
+  <script src="/socket.io/socket.io.js"></script>
+  <!-- Подключение Quill.js -->
+  <script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
+  <!-- Подключение FileSaver.js для сохранения файлов -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+  <script>
+    AOS.init();
+  
+    const socket = io();
+  
+    // Инициализация Quill
+    const quill = new Quill('#quillEditor', {
+      theme: 'snow'
+    });
+  
+    // Модальное окно
+    const modal = document.getElementById("commentModal");
+    const span = document.getElementsByClassName("close")[0];
+    const commentForm = document.getElementById("commentForm");
+  
+    // Открытие модального окна
+    function openModal(id, type) {
+      document.getElementById('transactionId').value = id;
+      document.getElementById('transactionType').value = type; // 'income' или 'expense'
+      modal.style.display = "flex";
+    }
+  
+    // Закрытие модального окна
+    span.onclick = function() {
+      modal.style.display = "none";
+      commentForm.reset();
+      quill.setText('');
+    }
+    window.onclick = function(event) {
+      if (event.target == modal) {
+        modal.style.display = "none";
+        commentForm.reset();
+        quill.setText('');
+      }
+    }
+  
+    // Функция для анимированных чисел
+    function animateNumber(id, end) {
+      const element = document.getElementById(id);
+      let start = 0;
+      const duration = 2000;
+      const increment = end / (duration / 16);
+  
+      function update() {
+        start += increment;
+        if (start < end) {
+          element.innerText = Math.floor(start) + ' ₽.';
+          requestAnimationFrame(update);
+        } else {
+          element.innerText = end + ' ₽.';
+        }
+      }
+      update();
+    }
+  
+    // Функция для получения данных с API
+    async function fetchData() {
+      const response = await fetch('/api/data');
+      const data = await response.json();
+      return data;
+    }
+  
+    // Функция для построения графиков и таблицы
+    async function buildDashboard() {
+      const data = await fetchData();
+  
+      // Расчёт сумм
+      const totalIncome = data.income.reduce((acc, curr) => acc + curr.amount, 0);
+      const totalExpenses = data.expenses.reduce((acc, curr) => acc + curr.amount, 0);
+      const balance = totalIncome - totalExpenses;
+      const averageIncome = data.income.length > 0 ? (totalIncome / data.income.length).toFixed(2) : 0;
+      const averageExpense = data.expenses.length > 0 ? (totalExpenses / data.expenses.length).toFixed(2) : 0;
+  
+      // Анимация чисел
+      animateNumber('income', totalIncome);
+      animateNumber('expenses', totalExpenses);
+      animateNumber('balance', balance);
+      animateNumber('averageIncome', averageIncome);
+      animateNumber('averageExpense', averageExpense);
+  
+      // Подготовка данных для графиков
+      const incomeLabels = data.income.map(entry => new Date(entry.date).toLocaleDateString());
+    const incomeData = data.income.map(entry => entry.amount);
+
+    const expensesLabels = data.expenses.map(entry => new Date(entry.date).toLocaleDateString());
+    const expensesData = data.expenses.map(entry => entry.amount);
+
+    // Создание графика доходов
+    if (window.incomeChartInstance) {
+      window.incomeChartInstance.data.labels = incomeLabels;
+      window.incomeChartInstance.data.datasets[0].data = incomeData;
+      window.incomeChartInstance.update();
+    } else {
+      const ctxIncome = document.getElementById('incomeChart').getContext('2d');
+      window.incomeChartInstance = new Chart(ctxIncome, {
+        type: 'line',
+        data: {
+          labels: incomeLabels,
+          datasets: [{
+            label: 'Доходы',
+            data: incomeData,
+            backgroundColor: 'rgba(0, 255, 238, 0.2)',
+            borderColor: '#00FFEE',
+            borderWidth: 2,
+            fill: true,
+            tension: 0.4
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: {
+              labels: {
+                color: '#00FFFF'
+              }
+            }
+          },
+          scales: {
+            x: {
+              ticks: { color: '#00FFFF' }
+            },
+            y: {
+              ticks: { color: '#00FFFF' },
+              beginAtZero: true
+            }
+          },
+          animation: {
+            duration: 2000,
+            easing: 'easeInOutQuart'
+          }
+        }
+      });
+    }
+
+    // Создание графика расходов
+    if (window.expensesChartInstance) {
+      window.expensesChartInstance.data.labels = expensesLabels;
+      window.expensesChartInstance.data.datasets[0].data = expensesData;
+      window.expensesChartInstance.update();
+    } else {
+      const ctxExpenses = document.getElementById('expensesChart').getContext('2d');
+      window.expensesChartInstance = new Chart(ctxExpenses, {
+        type: 'line',
+        data: {
+          labels: expensesLabels,
+          datasets: [{
+            label: 'Расходы',
+            data: expensesData,
+            backgroundColor: 'rgba(255, 99, 132, 0.2)',
+            borderColor: '#FF6384',
+            borderWidth: 2
+          }]
+        },
+        options: {
+            responsive: true,
+          plugins: {
+            legend: {
+              labels: {
+                color: '#FF6384'
+              }
+            }
+          },
+          scales: {
+            x: {
+              ticks: { color: '#FF6384' }
+            },
+            y: {
+              ticks: { color: '#FF6384' },
+              beginAtZero: true
+            }
+          },
+          animation: {
+            duration: 2000,
+            easing: 'easeInOutQuart'
+          }
+        }
+      });
+    }
+
+    // Построение таблицы транзакций
+    buildTable(data);
+  }
+
+  // Функция для построения таблицы
+  function buildTable(data) {
+    const transactions = [];
+
+    // Объединение доходов и расходов для таблицы
+    data.income.forEach(entry => {
+      transactions.push({
+        id: entry.id,
+        date: new Date(entry.date).toLocaleDateString(),
+        type: 'income', // Внутренний тип
+        displayType: 'Доход', // Тип для отображения
+        amount: entry.amount,
+        description: entry.description,
+        comments: entry.comments
+      });
+    });
+
+    data.expenses.forEach(entry => {
+      transactions.push({
+        id: entry.id,
+        date: new Date(entry.date).toLocaleDateString(),
+        type: 'expense', // Внутренний тип
+        displayType: 'Расход', // Тип для отображения
+        amount: entry.amount,
+        description: entry.description,
+        comments: entry.comments
+      });
+    });
+
+    // Сортировка по дате (последние сверху)
+    transactions.sort((a,b) => new Date(b.date) - new Date(a.date));
+
+// Ограничение на количество записей (например, последние 100)
+const limitedTransactions = transactions.slice(0, 100);
+
+// Добавление строк в таблицу
+const tbody = document.getElementById('transactions');
+tbody.innerHTML = ''; // Очистка таблицы перед добавлением
+limitedTransactions.forEach(tx => {
+  const tr = document.createElement('tr');
+
+  const tdDate = document.createElement('td');
+  tdDate.textContent = tx.date;
+  tr.appendChild(tdDate);
+
+  const tdType = document.createElement('td');
+  tdType.textContent = tx.displayType;
+  tdType.style.color = tx.type === 'income' ? '#00FF00' : '#FF0000';
+  tr.appendChild(tdType);
+
+  const tdAmount = document.createElement('td');
+  tdAmount.textContent = tx.amount + ' ₽.';
+  tr.appendChild(tdAmount);
+
+  const tdDescription = document.createElement('td');
+  tdDescription.textContent = tx.description;
+  tr.appendChild(tdDescription);
+
+  const tdComments = document.createElement('td');
+  const commentButton = document.createElement('button');
+  commentButton.textContent = 'Комментировать';
+  commentButton.className = 'comment-button';
+  commentButton.onclick = () => openModal(tx.id, tx.type);
+  tdComments.appendChild(commentButton);
+
+  // Отображение существующих комментариев
+  if (tx.comments.length > 0) {
+    const commentsSection = document.createElement('div');
+    commentsSection.className = 'comments-section';
+    tx.comments.forEach(comment => {
+      const commentDiv = document.createElement('div');
+      commentDiv.className = 'comment';
+      commentDiv.innerHTML = `<span class="name">${comment.name}:</span> ${comment.comment}`;
+      commentsSection.appendChild(commentDiv);
+    });
+    tdComments.appendChild(commentsSection);
+  }
+
+  tr.appendChild(tdComments);
+
+  tbody.appendChild(tr);
+});
+}
+
+// Функция для обработки формы комментариев
+commentForm.onsubmit = async function(e) {
+e.preventDefault();
+const id = document.getElementById('transactionId').value;
+const type = document.getElementById('transactionType').value; // 'income' или 'expense'
+const name = document.getElementById('commenterName').value;
+const comment = quill.root.innerHTML.trim();
+
+if (!name || quill.getText().trim().length === 0) {
+  alert('Пожалуйста, заполните все поля.');
+  return;
+}
+
+try {
+  const response = await fetch('/api/comments', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id, type, name, comment })
+  });
+
+  if (response.ok) {
+    // Закрытие модального окна и очистка формы
+    modal.style.display = "none";
+    commentForm.reset();
+    quill.setText('');
+  } else {
+    const errorData = await response.json();
+    alert('Ошибка при добавлении комментария: ' + (errorData.message || 'Unknown error.'));
+  }
+} catch (error) {
+  console.error('Ошибка при отправке запроса:', error);
+  alert('Произошла ошибка при отправке комментария.');
+}
+}
+
+// Функция для экспорта данных в Excel
+function exportToExcel() {
+window.location.href = '/api/export';
+}
+
+// Обработка обновлений в реальном времени
+socket.on('update', (data) => {
+buildDashboard();
+});
+
+// Запуск построения дашборда при загрузке страницы
+window.onload = buildDashboard;
+</script>
+
+
+</body>
+</html>
+
