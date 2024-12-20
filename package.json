@@ -1,5 +1,5 @@
 {
-  "name": "crows",
+  "name": "landingfi",
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
@@ -10,9 +10,12 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
-    "dotenv": "^16.4.7",
+    "body-parser": "^1.20.3",
+    "cors": "^2.8.5",
+    "exceljs": "^4.4.0",
     "express": "^4.21.2",
-    "ioredis": "^5.4.1",
-    "node-telegram-bot-api": "^0.66.0"
+    "node-telegram-bot-api": "^0.66.0",
+    "redis": "^4.7.0",
+    "socket.io": "^4.8.1"
   }
 }
