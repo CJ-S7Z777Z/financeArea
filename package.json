@@ -1,14 +1,15 @@
 {
-  "name": "landingfi",
+  "name": "telegram-mini-app",
   "version": "1.0.0",
+  "description": "Telegram Mini App for Crow Cage",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node index.js"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "description": "",
+  "engines": {
+    "node": ">=22.3.0"
+  },
+  
   "dependencies": {
     "body-parser": "^1.20.3",
     "cors": "^2.8.5",
