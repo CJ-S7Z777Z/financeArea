@@ -1,14 +1,14 @@
 {
-  "name": "landingfi",
+  "name": "financeares",
   "version": "1.0.0",
+  "description": "FinanceArea Traker app",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "description": "",
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "dependencies": {
     "body-parser": "^1.20.3",
     "cors": "^2.8.5",
