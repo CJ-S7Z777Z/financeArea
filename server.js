@@ -16,7 +16,7 @@ const bot = new TelegramBot(TELEGRAM_TOKEN, { polling: true });
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 5000;
 
 // Подключение к Redis
 const redisClient = redis.createClient({
@@ -26,7 +26,12 @@ const redisClient = redis.createClient({
 redisClient.on('error', (err) => console.log('Redis Client Error', err));
 
 (async () => {
-  await redisClient.connect();
+  try {
+    await redisClient.connect();
+    console.log('Подключено к Redis');
+  } catch (err) {
+    console.error('Ошибка подключения к Redis:', err);
+  }
 })();
 
 app.use(bodyParser.json());
@@ -42,7 +47,7 @@ async function addTransaction(type, amount, description) {
 
   // Добавление транзакции как хеш
   await redisClient.hSet(transactionKey, {
-    id,
+    id: id.toString(), // Хранить ID как строку
     type,
     amount,
     description,
@@ -50,7 +55,7 @@ async function addTransaction(type, amount, description) {
   });
 
   // Добавление ID транзакции в соответствующий список
-  await redisClient.rPush(type, id);
+  await redisClient.rPush(type, id.toString());
 
   return { id, type, amount, description, date };
 }
@@ -116,17 +121,27 @@ bot.onText(/\/add (income|expense) (\d+)\s*(.*)/i, async (msg, match) => {
     return;
   }
 
-  const transaction = await addTransaction(type, amount, description);
-  bot.sendMessage(chatId, `${type === 'income' ? 'Доход' : 'Расход'} добавлен: ${amount} руб. - ${description}`);
+  try {
+    const transaction = await addTransaction(type, amount, description);
+    bot.sendMessage(chatId, `${type === 'income' ? 'Доход' : 'Расход'} добавлен: ${amount} руб. - ${description}`);
 
-  const data = await getAllTransactions();
-  io.emit('update', data);
+    const data = await getAllTransactions();
+    io.emit('update', data);
+  } catch (err) {
+    console.error('Ошибка при добавлении транзакции:', err);
+    bot.sendMessage(chatId, 'Произошла ошибка при добавлении транзакции.');
+  }
 });
 
 // API для получения данных
 app.get('/api/data', async (req, res) => {
-  const data = await getAllTransactions();
-  res.json(data);
+  try {
+    const data = await getAllTransactions();
+    res.json(data);
+  } catch (err) {
+    console.error('Ошибка при получении данных:', err);
+    res.status(500).json({ message: 'Ошибка при получении данных.' });
+  }
 });
 
 // API для добавления комментария
@@ -142,73 +157,83 @@ app.post('/api/comments', async (req, res) => {
 
   console.log(`Ищем в коллекции ${type} запись с id: ${id}`);
 
-  const result = await addComment(id, type, name, comment);
+  try {
+    const result = await addComment(id, type, name, comment);
 
-  if (!result.success) {
-    console.log(`Запись не найдена. ID: ${id}, Type: ${type}`);
-    return res.status(404).json({ message: 'Запись не найдена.' });
+    if (!result.success) {
+      console.log(`Запись не найдена. ID: ${id}, Type: ${type}`);
+      return res.status(404).json({ message: 'Запись не найдена.' });
+    }
+
+    console.log('Добавлен комментарий:', result.comment);
+
+    const data = await getAllTransactions();
+    io.emit('update', data);
+
+    res.status(201).json({ message: 'Комментарий добавлен.', comment: result.comment });
+  } catch (err) {
+    console.error('Ошибка при добавлении комментария:', err);
+    res.status(500).json({ message: 'Произошла ошибка при добавлении комментария.' });
   }
-
-  console.log('Добавлен комментарий:', result.comment);
-
-  const data = await getAllTransactions();
-  io.emit('update', data);
-
-  res.status(201).json({ message: 'Комментарий добавлен.', comment: result.comment });
 });
 
 // API для экспорта данных в Excel
 app.get('/api/export', async (req, res) => {
-  const data = await getAllTransactions();
-  const workbook = new ExcelJS.Workbook();
+  try {
+    const data = await getAllTransactions();
+    const workbook = new ExcelJS.Workbook();
 
-  // Создание листа для доходов
-  const incomeSheet = workbook.addWorksheet('Доходы');
-  incomeSheet.columns = [
-    { header: 'ID', key: 'id', width: 15 },
-    { header: 'Сумма (руб.)', key: 'amount', width: 15 },
-    { header: 'Описание', key: 'description', width: 30 },
-    { header: 'Дата', key: 'date', width: 25 },
-    { header: 'Комментарии', key: 'comments', width: 50 }
-  ];
+    // Создание листа для доходов
+    const incomeSheet = workbook.addWorksheet('Доходы');
+    incomeSheet.columns = [
+      { header: 'ID', key: 'id', width: 15 },
+      { header: 'Сумма (руб.)', key: 'amount', width: 15 },
+      { header: 'Описание', key: 'description', width: 30 },
+      { header: 'Дата', key: 'date', width: 25 },
+      { header: 'Комментарии', key: 'comments', width: 50 }
+    ];
 
-  for (let entry of data.income) {
-    incomeSheet.addRow({
-      id: entry.id,
-      amount: entry.amount,
-      description: entry.description,
-      date: new Date(entry.date).toLocaleString(),
-      comments: entry.comments.map(c => `${c.name}: ${c.comment}`).join('\n')
-    });
+    for (let entry of data.income) {
+      incomeSheet.addRow({
+        id: entry.id,
+        amount: entry.amount,
+        description: entry.description,
+        date: new Date(entry.date).toLocaleString(),
+        comments: entry.comments.map(c => `${c.name}: ${c.comment}`).join('\n')
+      });
+    }
+
+    // Создание листа для расходов
+    const expensesSheet = workbook.addWorksheet('Расходы');
+    expensesSheet.columns = [
+      { header: 'ID', key: 'id', width: 15 },
+      { header: 'Сумма (руб.)', key: 'amount', width: 15 },
+      { header: 'Описание', key: 'description', width: 30 },
+      { header: 'Дата', key: 'date', width: 25 },
+      { header: 'Комментарии', key: 'comments', width: 50 }
+    ];
+
+    for (let entry of data.expenses) {
+      expensesSheet.addRow({
+        id: entry.id,
+        amount: entry.amount,
+        description: entry.description,
+        date: new Date(entry.date).toLocaleString(),
+        comments: entry.comments.map(c => `${c.name}: ${c.comment}`).join('\n')
+      });
+    }
+
+    // Настройка заголовка ответа
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename=FinanceData.xlsx');
+
+    // Отправка файла
+    await workbook.xlsx.write(res);
+    res.end();
+  } catch (err) {
+    console.error('Ошибка при экспорте данных в Excel:', err);
+    res.status(500).json({ message: 'Ошибка при экспорте данных в Excel.' });
   }
-
-  // Создание листа для расходов
-  const expensesSheet = workbook.addWorksheet('Расходы');
-  expensesSheet.columns = [
-    { header: 'ID', key: 'id', width: 15 },
-    { header: 'Сумма (руб.)', key: 'amount', width: 15 },
-    { header: 'Описание', key: 'description', width: 30 },
-    { header: 'Дата', key: 'date', width: 25 },
-    { header: 'Комментарии', key: 'comments', width: 50 }
-  ];
-
-  for (let entry of data.expenses) {
-    expensesSheet.addRow({
-      id: entry.id,
-      amount: entry.amount,
-      description: entry.description,
-      date: new Date(entry.date).toLocaleString(),
-      comments: entry.comments.map(c => `${c.name}: ${c.comment}`).join('\n')
-    });
-  }
-
-  // Настройка заголовка ответа
-  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-  res.setHeader('Content-Disposition', 'attachment; filename=FinanceData.xlsx');
-
-  // Отправка файла
-  await workbook.xlsx.write(res);
-  res.end();
 });
 
 // Запуск WebSocket соединения
